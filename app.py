@@ -1,9 +1,7 @@
 import discord
 from discord.ext.commands import Bot
-import requests
+import aiohttp
 import datetime
-import csv
-import time
 import urllib
 
 BOT_PREFIX = "!"
@@ -18,52 +16,45 @@ client.remove_command('help')
 async def on_ready():
     print("Bot is ready to receive commands!")
 
-
-def get_deal_by_id(id):
+async def get_deal_by_id(id):
     print("Search for deal by id " + id)
     url = "http://www.cheapshark.com/api/1.0/deals?id="+id
-    response = requests.get(url)
-    data = response.json()
-    return data
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            return data
 
-def get_game_by_id(id):
+async def get_game_by_id(id):
     print("Search for game by id " + id)
     url = "http://www.cheapshark.com/api/1.0/games?id="+id
-    response = requests.get(url)
-    data = response.json()
-    return data
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            return data
 
 
-def get_games_by_name(name):
+async def get_games_by_name(channel, name):
     print("Search for games for name " + name)
-    result = []
     url = "http://www.cheapshark.com/api/1.0/games?title="+urllib.parse.quote(name)+"&limit=5"
-    response = requests.get(url)
-    data = response.json()
-    for item in data:
-        result.append(get_game_by_id(item["gameID"]))
-    return result
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            for item in await response.json():
+                key = await get_game_by_id(item["gameID"])
+                game = {}
+                game['title'] = key['info']['title']
+                game['picture'] = key['info']['thumb']
+                game['cheapestPriceEver'] = key['cheapestPriceEver']['price']
+                game['cheapestPriceDate'] = datetime.datetime.fromtimestamp(key['cheapestPriceEver']['date']).strftime('%d-%b-%Y')
+                # result is already sorted by cheapest price first, so we'll just grab the cheapest item and return that.
+                deal = key['deals'][0]
+                dealID = deal['dealID']
+                dealDetails = await get_deal_by_id(dealID)
+                deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
+                game['dealPrice'] = dealDetails['gameInfo']['salePrice']
+                game['dealLink'] = deal_link
 
-async def parse_games(channel, data):
-    print("Parsing Games")
-    stores = []
-    ids = []
+                await channel.send(game['title'] + " is currently cheapest at " + game['dealLink'] + " for the price of $" + game['dealPrice'] + ". It was cheapest ever at $" + game['cheapestPriceEver'] + " on " + game['cheapestPriceDate'] + ".")        
 
-    for key in data:
-        game = {}
-        game['title'] = key['info']['title']
-        game['picture'] = key['info']['thumb']
-        game['cheapestPriceEver'] = key['cheapestPriceEver']['price']
-        game['cheapestPriceDate'] = datetime.datetime.fromtimestamp(key['cheapestPriceEver']['date']).strftime('%d-%b-%Y')
-        # result is already sorted by cheapest price first, so we'll just grab the cheapest item and return that.
-        deal = key['deals'][0]
-        dealID = deal['dealID']
-        dealDetails = get_deal_by_id(dealID)
-        deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
-        game['dealPrice'] = dealDetails['gameInfo']['salePrice']
-        game['dealLink'] = deal_link
-
-        await channel.send(game['title'] + " is currently cheapest at " + game['dealLink'] + " for the price of $" + game['dealPrice'] + ". It was cheapest ever at $" + game['cheapestPriceEver'] + " on " + game['cheapestPriceDate'] + ".")
 
 #Commands
 
@@ -73,8 +64,7 @@ async def search(ctx, *title):
     title = sep.join(title)
     author = ctx.message.author
     channel = ctx.message.channel
-    data = get_games_by_name(title)
-    await parse_games(channel, data)
+    await get_games_by_name(channel, title)
     
 
 @client.command(pass_context=True, aliases = ['Help', 'HELP'])
