@@ -17,16 +17,16 @@ async def on_ready():
     print("Bot is ready to receive commands!")
 
 async def get_deal_by_id(id):
-    print("Search for deal by id " + id)
-    url = "http://www.cheapshark.com/api/1.0/deals?id="+id
+    print(f"Search for deal by id {id}")
+    url = f"http://www.cheapshark.com/api/1.0/deals?id={id}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             data = await response.json()
             return data
 
 async def get_game_by_id(id):
-    print("Search for game by id " + id)
-    url = "http://www.cheapshark.com/api/1.0/games?id="+id
+    print(f"Search for game by id {id}")
+    url = f"http://www.cheapshark.com/api/1.0/games?id={id}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             data = await response.json()
@@ -34,8 +34,8 @@ async def get_game_by_id(id):
 
 
 async def get_games_by_name(channel, name):
-    print("Search for games for name " + name)
-    url = "http://www.cheapshark.com/api/1.0/games?title="+urllib.parse.quote(name)+"&limit=5"
+    print(f"Search for games for name \"{name}\"")
+    url = f"http://www.cheapshark.com/api/1.0/games?title={urllib.parse.quote(name)}&limit=5"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             for item in await response.json():
@@ -49,11 +49,11 @@ async def get_games_by_name(channel, name):
                 deal = key['deals'][0]
                 dealID = deal['dealID']
                 dealDetails = await get_deal_by_id(dealID)
-                deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
+                deal_link = f"https://www.cheapshark.com/redirect.php?dealID={dealID}"
                 game['dealPrice'] = dealDetails['gameInfo']['salePrice']
                 game['dealLink'] = deal_link
 
-                await channel.send(game['title'] + " is currently cheapest at " + game['dealLink'] + " for the price of $" + game['dealPrice'] + ". It was cheapest ever at $" + game['cheapestPriceEver'] + " on " + game['cheapestPriceDate'] + ".")        
+                await channel.send(f"{game['title']} is currently cheapest at {game['dealLink']} for the price of ${game['dealPrice']}. It was cheapest ever at ${game['cheapestPriceEver']} on {game['cheapestPriceDate']}.")        
 
 
 #Commands
