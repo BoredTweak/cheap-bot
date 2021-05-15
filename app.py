@@ -4,6 +4,7 @@ import requests
 import datetime
 import csv
 import time
+import urllib
 
 BOT_PREFIX = "!"
 TOKEN = open("config.txt", 'r').read().replace("\n", '')
@@ -34,7 +35,7 @@ def get_game_by_id(id):
 
 def get_games_by_name(name):
     result = []
-    url = "http://www.cheapshark.com/api/1.0/games?title="+name+"&limit=5"
+    url = "http://www.cheapshark.com/api/1.0/games?title="+urllib.parse.quote(name)+"&limit=5"
     response = requests.get(url)
     data = response.json()
     for item in data:
@@ -43,41 +44,34 @@ def get_games_by_name(name):
 
 async def parse_games(channel, data):
     print("Parsing Games")
-    print(data)
-    game_list = []
     stores = []
     ids = []
 
     for key in data:
-        print()
-        print(key)
         game = {}
         game['title'] = key['info']['title']
         game['picture'] = key['info']['thumb']
         game['cheapestPriceEver'] = key['cheapestPriceEver']['price']
         game['cheapestPriceDate'] = datetime.datetime.fromtimestamp(key['cheapestPriceEver']['date']).strftime('%d-%b-%Y')
-        deals = []
         # result is already sorted by cheapest price first, so we'll just grab the cheapest item and return that.
-        for deal in key['deals'][:1]:
-            dealID = deal['dealID']
-            dealDetails = get_deal_by_id(dealID)
-            deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
-            game['dealPrice'] = dealDetails['gameInfo']['salePrice']
-            game['dealLink'] = deal_link
+        deal = key['deals'][0]
+        dealID = deal['dealID']
+        dealDetails = get_deal_by_id(dealID)
+        print(dealDetails)
+        deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
+        game['dealPrice'] = dealDetails['gameInfo']['salePrice']
+        game['dealLink'] = deal_link
 
-        game_list.append(game)
         await channel.send(game['title'] + " is currently cheapest at " + game['dealLink'] + " for the price of $" + game['dealPrice'] + ". It was cheapest ever at $" + game['cheapestPriceEver'] + " on " + game['cheapestPriceDate'] + ".")
-
-    return game_list
 
 #Commands
 
 @client.command(pass_context=True, aliases = ['searchgames', 'SearchGames', 'SEARCHGAMES'])
-async def search(ctx, title):
+async def search(ctx, *title):
+    sep = ' '
+    title = sep.join(title)
     author = ctx.message.author
     channel = ctx.message.channel
-    print(ctx.message)
-    print(title)
     data = get_games_by_name(title)
     print(data)
     game_list = await parse_games(channel, data)
