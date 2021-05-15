@@ -20,13 +20,14 @@ async def on_ready():
 
 
 def get_deal_by_id(id):
-    print("Search for deals for id " + id)
+    print("Search for deal by id " + id)
     url = "http://www.cheapshark.com/api/1.0/deals?id="+id
     response = requests.get(url)
     data = response.json()
     return data
 
 def get_game_by_id(id):
+    print("Search for game by id " + id)
     url = "http://www.cheapshark.com/api/1.0/games?id="+id
     response = requests.get(url)
     data = response.json()
@@ -34,6 +35,7 @@ def get_game_by_id(id):
 
 
 def get_games_by_name(name):
+    print("Search for games for name " + name)
     result = []
     url = "http://www.cheapshark.com/api/1.0/games?title="+urllib.parse.quote(name)+"&limit=5"
     response = requests.get(url)
@@ -57,7 +59,6 @@ async def parse_games(channel, data):
         deal = key['deals'][0]
         dealID = deal['dealID']
         dealDetails = get_deal_by_id(dealID)
-        print(dealDetails)
         deal_link = "https://www.cheapshark.com/redirect.php?dealID=" + dealID
         game['dealPrice'] = dealDetails['gameInfo']['salePrice']
         game['dealLink'] = deal_link
@@ -73,9 +74,7 @@ async def search(ctx, *title):
     author = ctx.message.author
     channel = ctx.message.channel
     data = get_games_by_name(title)
-    print(data)
-    game_list = await parse_games(channel, data)
-    print(channel, game_list)
+    await parse_games(channel, data)
     
 
 @client.command(pass_context=True, aliases = ['Help', 'HELP'])
