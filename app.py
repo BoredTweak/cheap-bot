@@ -1,6 +1,7 @@
 import discord
 from discord.ext.commands import Bot
 import aiohttp
+import asyncio
 import datetime
 import urllib
 
@@ -17,57 +18,98 @@ async def on_ready():
     print("Bot is ready to receive commands!")
 
 async def get_deal_by_id(id):
+    if not id:
+        return None
+
     print(f"Search for deal by id {id}")
     url = f"http://www.cheapshark.com/api/1.0/deals?id={id}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
-            data = await response.json()
-            return data
+            if not response.status == 200:
+                print(f"CheapShark API failed for call to {url}")
+                return None
+            return await response.json()
 
 async def get_game_by_id(id):
+    if not id:
+        return None
+
     print(f"Search for game by id {id}")
     url = f"http://www.cheapshark.com/api/1.0/games?id={id}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
-            data = await response.json()
-            return data
-
+            if not response.status == 200:
+                print(f"CheapShark API failed for call to {url}")
+                return None
+            return await response.json()
+            
 
 async def get_games_by_name(channel, name):
-    print(f"Search for games for name \"{name}\"")
-    await channel.send(f"Here are the CheapShark results for \"{name}\":")
+    if not name:
+        return None
+
+    print(f"Searching for games for name \"{name}\"")
+    await channel.send(f"Finding (up to) the top 5 CheapShark results for \"{name}\"...")
     url = f"http://www.cheapshark.com/api/1.0/games?title={urllib.parse.quote(name)}&limit=5"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
-            for item in await response.json():
-                key = await get_game_by_id(item["gameID"])
-                game = {}
-                game['title'] = key['info']['title']
-                game['picture'] = key['info']['thumb']
-                game['cheapestPriceEver'] = key['cheapestPriceEver']['price']
-                game['cheapestPriceDate'] = datetime.datetime.fromtimestamp(key['cheapestPriceEver']['date']).strftime('%d-%b-%Y')
-                # result is already sorted by cheapest price first, so we'll just grab the cheapest item and return that.
-                deal = key['deals'][0]
-                dealID = deal['dealID']
-                dealDetails = await get_deal_by_id(dealID)
-                deal_link = f"https://www.cheapshark.com/redirect.php?dealID={dealID}"
-                game['dealPrice'] = dealDetails['gameInfo']['salePrice']
-                game['dealLink'] = deal_link
-                game['retailPrice'] = dealDetails['gameInfo']['retailPrice']
+            if not response.status == 200:
+                print(f"CheapShark API failed for call to {url}")
+                channel.send(f"Failed to retrieve CheapShark results for \"{name}\"")
+                return None
+            try:
+                tasks = [parse_results(item) for item in await response.json()]
+                message = ">>> "
+                for index, task in enumerate(asyncio.as_completed(tasks)):
+                    message += await task
+                sent = await channel.send(content=message)
+                await sent.edit(suppress=True)
+            except Exception as ex:
+                print(ex)
+                await channel.send(f"Failed to retrieve CheapShark results for \"{name}\"")
                 
-                # Another option for the message that takes up less space: 
-                # await channel.send(f"{game['title']} is currently cheapest at {game['dealLink']} for the price of ${game['dealPrice']}. It was cheapest ever at ${game['cheapestPriceEver']} on {game['cheapestPriceDate']}.")        
-                await channel.send(f">>> **Title**: {game['title']}\n\n**Retail Price**: ${game['retailPrice']}\n**Current Price**: ${game['dealPrice']}\n**Link**: {game['dealLink']}\n\n**Cheapest Ever**:\n{game['cheapestPriceDate']}\n${game['cheapestPriceEver']}")        
 
+async def parse_results(item):
+    if not item:
+        return None
+    key = await get_game_by_id(item.get('gameID', None))
+    info = key.get('info', None)
+    if(info):
+        title = info.get('title', None)
+
+    cheapestPriceInfo = key.get('cheapestPriceEver', None)
+    if(cheapestPriceInfo):
+        cheapestPriceEver = cheapestPriceInfo.get('price', None)
+        cheapestPriceDate = cheapestPriceInfo.get('date', None)
+        cheapestPriceDate = datetime.datetime.fromtimestamp(cheapestPriceDate).strftime('%B %d, %Y')
+
+    # result is already sorted by cheapest price first, so we'll just grab the cheapest item and return that.
+    deals = key.get('deals', None)
+    if(deals):
+        deal = next(iter(deals), None)
+        if(deal):
+            dealID = deal.get('dealID', None)
+            dealDetails = await get_deal_by_id(dealID)
+            deal_link = f"https://www.cheapshark.com/redirect.php?dealID={dealID}"
+            if(dealDetails):
+                gameInfo = dealDetails.get('gameInfo', None)
+                if(gameInfo):
+                    dealPrice = gameInfo.get('salePrice')
+                    retailPrice = gameInfo.get('retailPrice')
+
+    return f"__**Title**: {title}__\n**Retail Price**: ${retailPrice}\n**Current Price**: ${dealPrice}\n**Link**: {deal_link}\n**Cheapest Ever**: ${cheapestPriceEver} on {cheapestPriceDate}\n\n" 
+    
 
 #Commands
 
 @client.command(pass_context=True, aliases = ['searchgames', 'SearchGames', 'SEARCHGAMES'])
 async def search(ctx, *title):
+    channel = ctx.message.channel
     sep = ' '
     title = sep.join(title)
-    author = ctx.message.author
-    channel = ctx.message.channel
+    if not title:
+        await channel.send("Unable to determine search criteria. Please try again with a specific title. E.g. - `!searchgames Phasmophobia`")
+    
     await get_games_by_name(channel, title)
     
 
@@ -77,6 +119,5 @@ async def help(ctx):
     author = ctx.message.author
     channel = ctx.message.channel
     await channel.send(help) 
-
 
 client.run(TOKEN, reconnect=True)
