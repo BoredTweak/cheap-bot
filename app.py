@@ -60,7 +60,7 @@ async def get_games_by_name(channel, name):
             try:
                 tasks = [parse_results(item) for item in await response.json()]
                 message = ">>> "
-                for index, task in enumerate(asyncio.as_completed(tasks)):
+                for task in asyncio.as_completed(tasks):
                     message += await task
                 sent = await channel.send(content=message)
                 await sent.edit(suppress=True)
