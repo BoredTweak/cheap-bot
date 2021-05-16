@@ -35,6 +35,7 @@ async def get_game_by_id(id):
 
 async def get_games_by_name(channel, name):
     print(f"Search for games for name \"{name}\"")
+    await channel.send(f"Here are the CheapShark results for \"{name}\":")
     url = f"http://www.cheapshark.com/api/1.0/games?title={urllib.parse.quote(name)}&limit=5"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -52,8 +53,11 @@ async def get_games_by_name(channel, name):
                 deal_link = f"https://www.cheapshark.com/redirect.php?dealID={dealID}"
                 game['dealPrice'] = dealDetails['gameInfo']['salePrice']
                 game['dealLink'] = deal_link
-
-                await channel.send(f"{game['title']} is currently cheapest at {game['dealLink']} for the price of ${game['dealPrice']}. It was cheapest ever at ${game['cheapestPriceEver']} on {game['cheapestPriceDate']}.")        
+                game['retailPrice'] = dealDetails['gameInfo']['retailPrice']
+                
+                # Another option for the message that takes up less space: 
+                # await channel.send(f"{game['title']} is currently cheapest at {game['dealLink']} for the price of ${game['dealPrice']}. It was cheapest ever at ${game['cheapestPriceEver']} on {game['cheapestPriceDate']}.")        
+                await channel.send(f">>> **Title**: {game['title']}\n\n**Retail Price**: ${game['retailPrice']}\n**Current Price**: ${game['dealPrice']}\n**Link**: {game['dealLink']}\n\n**Cheapest Ever**:\n{game['cheapestPriceDate']}\n${game['cheapestPriceEver']}")        
 
 
 #Commands
