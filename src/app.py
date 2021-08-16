@@ -102,7 +102,7 @@ async def parse_results(item):
 
 #Commands
 
-@client.command(pass_context=True, aliases = ['searchgames', 'SearchGames', 'SEARCHGAMES'])
+@client.command(pass_context=True, aliases = ['deals', 'Deals', 'DEALS'])
 async def search(ctx, *title):
     channel = ctx.message.channel
     sep = ' '
@@ -115,7 +115,7 @@ async def search(ctx, *title):
 
 @client.command(pass_context=True, aliases = ['Help', 'HELP'])
 async def help(ctx):
-    help = "You have asked for help!\nThis discord bot is capable of requesting the best game deals from a Public API across multiple platforms.\nCommands:\n`!searchgames {game name}` - Sends results for the cheapest price now as well as the cheapest price ever for a given game title. Limited to the top 5 matches for game name."
+    help = "You have asked for help!\nThis discord bot is capable of requesting the best game deals from a Public API across multiple platforms.\nCommands:\n`!deals {game name}` - Sends results for the cheapest price now as well as the cheapest price ever for a given game title. Limited to the top 5 matches for game name."
     author = ctx.message.author
     channel = ctx.message.channel
     await channel.send(help) 
