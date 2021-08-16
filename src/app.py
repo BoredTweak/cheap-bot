@@ -62,6 +62,12 @@ async def get_games_by_name(channel, name):
                 message = ">>> "
                 for task in asyncio.as_completed(tasks):
                     message += await task
+                if message == ">>> ":
+                    message = "Sorry, I couldn't find any results for that game. It could be that the game isn't sold" \
+                              " on stores that CheapShark monitors or it could be a spelling error."
+                else:
+                    message += "\n This tool was made by BoredTweak! If you have suggestions or questions, visit " \
+                               "https://github.com/BoredTweak/cheap-bot"
                 sent = await channel.send(content=message)
                 await sent.edit(suppress=True)
             except Exception as ex:
