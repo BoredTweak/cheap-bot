@@ -4,9 +4,17 @@ import aiohttp
 import asyncio
 import datetime
 import urllib
+import os
 
 BOT_PREFIX = "!"
-TOKEN = open("config.txt", 'r').read().replace("\n", '')
+
+if(os.path.isfile('config.txt')):
+    TOKEN = open("config.txt", 'r').read().replace("\n", '')
+elif(os.getenv('BOTTOKEN')):
+    TOKEN = os.getenv('BOTTOKEN')
+else:
+    raise ValueError('Unable to obtain discord bot token.')
+
 client = Bot(command_prefix = BOT_PREFIX)
 
 # Remove default help command in favor of our own
